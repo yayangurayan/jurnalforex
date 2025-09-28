@@ -3,12 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jurnal Trading Forex - Pro v3</title>
-    <!-- Tautan ke File CSS -->
+    <title>Jurnal Trading Forex - Pro v4.1</title>
     <link rel="stylesheet" href="style.css">
-    <!-- Tautan ke Font Awesome untuk Ikon -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <!-- Tautan ke Chart.js untuk Grafik -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
@@ -22,6 +19,7 @@
         <ul class="nav-links">
             <li><a href="#dashboard" class="nav-link active"><i class="fas fa-chart-pie"></i> Dashboard</a></li>
             <li><a href="#transactions" class="nav-link"><i class="fas fa-exchange-alt"></i> Transaksi</a></li>
+            <li><a href="#backtesting" class="nav-link"><i class="fas fa-vial"></i> Backtesting</a></li>
             <li><a href="#deposits-withdrawals" class="nav-link"><i class="fas fa-wallet"></i> Deposit & Penarikan</a></li>
             <li><a href="#calculator" class="nav-link"><i class="fas fa-calculator"></i> Kalkulator</a></li>
             <li><a href="#settings" class="nav-link"><i class="fas fa-cog"></i> Pengaturan</a></li>
@@ -72,11 +70,30 @@
                 <table>
                     <thead>
                         <tr>
-                            <th>Tanggal</th><th>Simbol</th><th>Tipe</th><th>Lot</th><th>Harga Masuk</th><th>Harga Keluar</th><th>P/L (AUC)</th><th>Aksi</th>
+                            <th>Tanggal</th><th>Simbol</th><th>Tipe</th><th>Lot</th><th>P/L (AUC)</th><th>Detail</th><th>Aksi</th>
                         </tr>
                     </thead>
                     <tbody id="trades-table-body"></tbody>
                 </table>
+            </div>
+        </section>
+
+        <section id="backtesting" class="page-section">
+            <h2>Analisis & Backtesting</h2>
+            <div class="backtesting-card">
+                <h4>Analisis Setup Trading</h4>
+                <p>Cari transaksi berdasarkan alasan entry Anda untuk melihat performanya.</p>
+                <form id="backtest-form">
+                    <div class="form-group">
+                        <label for="backtest-reason">Cari Alasan Entry (kata kunci)</label>
+                        <input type="text" id="backtest-reason" placeholder="Contoh: 'RSI oversold' atau 'breakout'">
+                    </div>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Analisis</button>
+                </form>
+                <div id="backtest-results-wrapper" class="result-wrapper">
+                    <h4>Hasil Analisis:</h4>
+                    <div id="backtest-results"></div>
+                </div>
             </div>
         </section>
 
@@ -107,15 +124,6 @@
                     </form>
                     <div id="position-size-result-wrapper" class="result-wrapper"><div class="calc-result" id="position-size-result"></div></div>
                 </div>
-                 <div class="calc-card">
-                    <h4>Kalkulator Nilai Pip</h4>
-                    <form id="pip-value-form">
-                        <div class="form-group"><label for="pv-lot-size">Ukuran Lot</label><input type="number" step="0.01" id="pv-lot-size" value="0.01" required></div>
-                        <div class="form-group"><label for="pv-pair">Pasangan Mata Uang</label><input type="text" id="pv-pair" value="EURUSD" placeholder="e.g., EURUSD" required></div>
-                        <button type="submit" class="btn btn-primary">Hitung Nilai Pip</button>
-                    </form>
-                    <div id="pip-value-result-wrapper" class="result-wrapper"><div class="calc-result" id="pip-value-result"></div></div>
-                </div>
             </div>
         </section>
 
@@ -145,36 +153,43 @@
 
     <div class="modal-overlay" id="modal-overlay"></div>
 
+    <!-- Modal Tambah Transaksi (Diperbarui) -->
     <div class="modal" id="add-trade-modal">
         <div class="modal-header"><h3>Tambah Transaksi Baru</h3><button class="close-modal-btn">&times;</button></div>
         <div class="modal-body">
             <form id="add-trade-form">
-                <div class="form-grid">
-                    <div class="form-group"><label for="trade-date">Tanggal</label><input type="date" id="trade-date" required></div>
-                    <div class="form-group"><label for="trade-symbol">Simbol</label><input type="text" id="trade-symbol" placeholder="EURUSD" required></div>
-                    <div class="form-group"><label for="trade-type">Tipe</label><select id="trade-type" required><option value="Buy">Buy</option><option value="Sell">Sell</option></select></div>
-                    <div class="form-group"><label for="trade-lot">Ukuran Lot</label><input type="number" step="0.01" id="trade-lot" placeholder="0.1" required></div>
-                    <div class="form-group"><label for="trade-entry">Harga Masuk</label><input type="number" step="any" id="trade-entry" placeholder="1.05000" required></div>
-                    <div class="form-group"><label for="trade-exit">Harga Keluar</label><input type="number" step="any" id="trade-exit" placeholder="1.05500" required></div>
+                <div class="form-section">
+                    <h4>Data Perdagangan</h4>
+                    <div class="form-grid">
+                        <div class="form-group"><label for="trade-date">Tanggal</label><input type="date" id="trade-date" required></div>
+                        <div class="form-group"><label for="trade-symbol">Simbol</label><input type="text" id="trade-symbol" placeholder="EURUSD" required></div>
+                        <div class="form-group"><label for="trade-type">Tipe</label><select id="trade-type" required><option value="Buy">Buy</option><option value="Sell">Sell</option></select></div>
+                        <div class="form-group"><label for="trade-lot">Ukuran Lot</label><input type="number" step="0.01" id="trade-lot" placeholder="0.1" required></div>
+                    </div>
+                     <div class="form-grid">
+                        <div class="form-group"><label for="pnl-type">Hasil</label><select id="pnl-type" required><option value="Profit">Profit</option><option value="Loss">Loss</option></select></div>
+                        <div class="form-group"><label for="trade-pnl-amount">Jumlah P/L (AUC)</label><input type="number" step="any" id="trade-pnl-amount" placeholder="550.75" required></div>
+                    </div>
                 </div>
-                <div class="form-grid pnl-grid">
-                    <div class="form-group">
-                        <label for="pnl-type">Hasil</label>
-                        <select id="pnl-type" required>
-                            <option value="Profit">Profit</option>
-                            <option value="Loss">Loss</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="trade-pnl-amount">Jumlah P/L (AUC)</label>
-                        <input type="number" step="any" id="trade-pnl-amount" placeholder="550.75" required>
-                    </div>
+                 <div class="form-section">
+                    <h4>Analisis & Jurnal</h4>
+                    <div class="form-group"><label for="trade-notes-entry">Alasan Entry</label><textarea id="trade-notes-entry" rows="4" placeholder="Contoh: Breakout dari resistance, RSI oversold, dll."></textarea></div>
+                    <div class="form-group"><label for="trade-notes-mistakes">Kesalahan / Pelajaran</label><textarea id="trade-notes-mistakes" rows="4" placeholder="Contoh: Entry terlalu cepat, lupa set SL, dll."></textarea></div>
                 </div>
                 <button type="submit" class="btn btn-primary">Simpan Transaksi</button>
             </form>
         </div>
     </div>
 
+    <!-- Modal Lihat Detail Transaksi -->
+    <div class="modal" id="view-trade-modal">
+        <div class="modal-header"><h3 id="view-trade-title">Detail Transaksi</h3><button class="close-modal-btn">&times;</button></div>
+        <div class="modal-body" id="view-trade-body">
+            <!-- Konten detail akan dimasukkan oleh JS -->
+        </div>
+    </div>
+
+    <!-- Modal Lainnya (tetap sama) -->
     <div class="modal" id="add-dw-modal">
         <div class="modal-header"><h3>Tambah Deposit/Penarikan</h3><button class="close-modal-btn">&times;</button></div>
         <div class="modal-body">
@@ -186,7 +201,6 @@
             </form>
         </div>
     </div>
-
     <div class="modal" id="confirm-modal">
         <div class="modal-header"><h3 id="confirm-title">Konfirmasi</h3><button class="close-modal-btn">&times;</button></div>
         <div class="modal-body">

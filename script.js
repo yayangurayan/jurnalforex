@@ -64,17 +64,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const renderTradesTable = () => {
         const tableBody = getElement('trades-table-body');
         tableBody.innerHTML = (trades.length === 0) 
-            ? `<tr><td colspan="8" style="text-align:center;">Belum ada transaksi.</td></tr>`
+            ? `<tr><td colspan="7" style="text-align:center;">Belum ada transaksi.</td></tr>`
             : trades.map(trade => `
                 <tr>
                     <td>${trade.date}</td>
                     <td>${trade.symbol.toUpperCase()}</td>
                     <td class="${trade.type === 'Buy' ? 'text-success' : 'text-danger'}">${trade.type}</td>
                     <td>${trade.lot}</td>
-                    <td>${trade.entry}</td>
-                    <td>${trade.exit}</td>
                     <td class="${trade.pnl >= 0 ? 'text-success' : 'text-danger'}">${formatCurrency(trade.pnl)}</td>
-                    <td><button class="action-btn delete-trade" data-id="${trade.id}"><i class="fas fa-trash"></i></button></td>
+                    <td>
+                        <button class="action-btn view-trade" data-id="${trade.id}" title="Lihat Detail">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </td>
+                    <td>
+                        <button class="action-btn delete-trade" data-id="${trade.id}" title="Hapus">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
                 </tr>`).join('');
     };
 
@@ -132,7 +139,7 @@ document.addEventListener('DOMContentLoaded', () => {
             options: { responsive: true, maintainAspectRatio: false, scales: { y: { ticks: { callback: (value) => formatCurrency(value) } } }, plugins: { tooltip: { callbacks: { label: (c) => `Saldo: ${formatCurrency(c.parsed.y)}` } } } }
         });
     };
-
+    
     // =========================================================================
     // HANDLER FUNGSI UNTUK EVENT
     // =========================================================================
@@ -146,21 +153,21 @@ document.addEventListener('DOMContentLoaded', () => {
             showToast('Jumlah P/L harus angka positif yang valid.', 'error');
             return;
         }
-        
-        // Menentukan nilai P/L akhir. Jika 'Loss', buat menjadi negatif.
+
         const finalPnl = pnlType === 'Loss' ? -pnlAmount : pnlAmount;
 
-        trades.push({ 
+        const newTrade = { 
             id: Date.now(), 
             date: form['trade-date'].value, 
             symbol: form['trade-symbol'].value, 
             type: form['trade-type'].value, 
             lot: parseFloat(form['trade-lot'].value), 
-            entry: parseFloat(form['trade-entry'].value), 
-            exit: parseFloat(form['trade-exit'].value), 
-            pnl: finalPnl 
-        });
-
+            pnl: finalPnl,
+            notes_entry: form['trade-notes-entry'].value,
+            notes_mistakes: form['trade-notes-mistakes'].value,
+        };
+        
+        trades.push(newTrade);
         saveToStorage('forex_trades', trades);
         updateUI();
         form.reset();
@@ -199,6 +206,65 @@ document.addEventListener('DOMContentLoaded', () => {
             closeModal();
             showToast('Item berhasil dihapus.', 'success');
         });
+    };
+
+    const handleViewTrade = (e) => {
+        const viewBtn = e.target.closest('.view-trade');
+        if (!viewBtn) return;
+        const id = parseInt(viewBtn.dataset.id, 10);
+        const trade = trades.find(t => t.id === id);
+
+        if (!trade) return;
+
+        getElement('view-trade-title').textContent = `Detail: ${trade.symbol.toUpperCase()} (${trade.date})`;
+        const body = getElement('view-trade-body');
+        body.innerHTML = `
+            <div class="detail-grid">
+                <strong>Tanggal:</strong> <span>${trade.date}</span>
+                <strong>Simbol:</strong> <span>${trade.symbol.toUpperCase()}</span>
+                <strong>Tipe:</strong> <span class="${trade.type === 'Buy' ? 'text-success' : 'text-danger'}">${trade.type}</span>
+                <strong>Lot:</strong> <span>${trade.lot}</span>
+                <strong>P/L:</strong> <span class="${trade.pnl >= 0 ? 'text-success' : 'text-danger'}">${formatCurrency(trade.pnl)}</span>
+            </div>
+            
+            <h4>Alasan Entry</h4>
+            <pre>${trade.notes_entry || 'Tidak ada catatan.'}</pre>
+            
+            <h4>Kesalahan / Pelajaran</h4>
+            <pre>${trade.notes_mistakes || 'Tidak ada catatan.'}</pre>
+        `;
+        openModal('view-trade-modal');
+    };
+
+    const handleBacktest = (e) => {
+        e.preventDefault();
+        const keyword = getElement('backtest-reason').value.toLowerCase().trim();
+        const resultsWrapper = getElement('backtest-results-wrapper');
+        const resultsEl = getElement('backtest-results');
+
+        if (!keyword) {
+            showToast('Silakan masukkan kata kunci untuk analisis.', 'error');
+            return;
+        }
+
+        const filteredTrades = trades.filter(t => t.notes_entry && t.notes_entry.toLowerCase().includes(keyword));
+        
+        if (filteredTrades.length === 0) {
+            resultsEl.innerHTML = `<p>Tidak ditemukan transaksi dengan kata kunci '${keyword}'.</p>`;
+        } else {
+            const totalTrades = filteredTrades.length;
+            const winningTrades = filteredTrades.filter(t => t.pnl > 0).length;
+            const totalPnl = filteredTrades.reduce((sum, t) => sum + t.pnl, 0);
+            const winRate = (winningTrades / totalTrades * 100).toFixed(1);
+
+            resultsEl.innerHTML = `
+                <p>Total Transaksi: <strong>${totalTrades}</strong></p>
+                <p>Menang: <strong>${winningTrades}</strong> | Kalah: <strong>${totalTrades - winningTrades}</strong></p>
+                <p>Win Rate: <strong>${winRate}%</strong></p>
+                <p>Total P/L: <strong class="${totalPnl >= 0 ? 'text-success' : 'text-danger'}">${formatCurrency(totalPnl)}</strong></p>
+            `;
+        }
+        resultsWrapper.style.display = 'block';
     };
     
     const handleExport = () => {
@@ -274,11 +340,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         getElement('add-trade-form').addEventListener('submit', handleAddTrade);
         getElement('add-dw-form').addEventListener('submit', handleAddDw);
-        getElement('trades-table-body').addEventListener('click', handleDelete);
+        getElement('trades-table-body').addEventListener('click', (e) => {
+            handleDelete(e);
+            handleViewTrade(e);
+        });
         getElement('dw-table-body').addEventListener('click', handleDelete);
-        
-        getElement('position-size-form').addEventListener('submit', (e) => { e.preventDefault(); /* Kalkulator lain tetap sama */ });
-        getElement('pip-value-form').addEventListener('submit', (e) => { e.preventDefault(); /* Kalkulator lain tetap sama */ });
+        getElement('backtest-form').addEventListener('submit', handleBacktest);
         
         getElement('delete-all-data-btn').addEventListener('click', () => showConfirmation('Hapus Semua Data', 'Anda yakin ingin menghapus semua data secara permanen?', () => {
             localStorage.clear();
